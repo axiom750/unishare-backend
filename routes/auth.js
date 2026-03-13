@@ -63,13 +63,14 @@ router.get('/me', async (req, res) => {
   });
 });
 
-// Enhanced logout
-router.get('/logout', (req, res, next) => {
+// Shared logout handler
+function handleLogout(req, res, next, isApi = false) {
   const sid = req.sessionID;
   
   req.logout({ keepSessionInfo: false }, (err) => {
     if (err) {
       console.error('❌ Logout error:', err);
+      if (isApi) return res.status(500).json({ success: false, message: 'Logout failed' });
       return next(err);
     }
 
@@ -93,9 +94,22 @@ router.get('/logout', (req, res, next) => {
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
       });
       
+      if (isApi) {
+        return res.json({ success: true, message: 'Logged out successfully' });
+      }
       res.redirect(`${process.env.FRONTEND_URL}?logout=success`);
     });
   });
+}
+
+// API logout (POST) - returns JSON, used by frontend fetch calls
+router.post('/logout', (req, res, next) => {
+  handleLogout(req, res, next, true);
+});
+
+// Browser logout (GET) - redirects, used as fallback
+router.get('/logout', (req, res, next) => {
+  handleLogout(req, res, next, false);
 });
 
 // Health check for auth
